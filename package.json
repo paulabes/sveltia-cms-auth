@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "start": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy --var ALLOWED_DOMAINS:tegannorthwood-astro.pages.dev,tegannorthwood.com.au,www.tegannorthwood.com.au --var GITHUB_CLIENT_ID:Ov23liyUBis9bryq41Pn --var GITHUB_CLIENT_SECRET:$GITHUB_CLIENT_SECRET",
     "check": "pnpm run '/^check:.*/'",
     "check:audit": "pnpm audit",
     "check:cspell": "cspell --no-progress",
