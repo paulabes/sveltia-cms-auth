@@ -1,3 +1,11 @@
 name = "sveltia-cms-auth"
 main = "src/index.js"
 compatibility_date = "2023-03-24"
+
+# Non-secret config lives here so Workers Builds bakes it into every
+# deploy. Dashboard-set plaintext vars get wiped on each build because
+# `wrangler deploy` resets vars to whatever this file declares.
+# GITHUB_CLIENT_SECRET stays a dashboard secret (secrets survive builds).
+[vars]
+ALLOWED_DOMAINS = "tegannorthwood-astro.pages.dev,tegannorthwood.com.au,www.tegannorthwood.com.au"
+GITHUB_CLIENT_ID = "Ov23liyUBis9bryq41Pn"
