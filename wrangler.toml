@@ -2,7 +2,15 @@ name = "sveltia-cms-auth"
 main = "src/index.js"
 compatibility_date = "2023-03-24"
 
-# Runtime vars are set explicitly by the deploy command in package.json
-# (`wrangler deploy --var ...`), with the secret sourced from the Workers
-# Builds build variable $GITHUB_CLIENT_SECRET. This avoids the keep_vars /
-# dashboard-wipe pitfalls — every deploy sets all three bindings directly.
+# Shared CMS login for every CEM Sveltia site. One GitHub OAuth App
+# ("Sveltia CMS (Crouch End Media)") whose callback points at this Worker's
+# /callback. To add a site: append its domains to ALLOWED_DOMAINS and push to
+# main (Workers Builds runs `pnpm run deploy`).
+#
+# GITHUB_CLIENT_SECRET is a Worker SECRET (wrangler secret put), never here.
+# `wrangler deploy` leaves secrets alone and sets these vars on every deploy,
+# so this file is the single source of truth. Never upload this Worker via the
+# raw Cloudflare API: that wiped every binding on 28 Jul 2026.
+[vars]
+GITHUB_CLIENT_ID = "Ov23liyUBis9bryq41Pn"
+ALLOWED_DOMAINS = "tegannorthwood-astro.pages.dev,tegannorthwood.com.au,www.tegannorthwood.com.au,latimernetwork.org,www.latimernetwork.org,latimer-network-astro.paulabrahams-dev.workers.dev,pmsommer.com,www.pmsommer.com"
