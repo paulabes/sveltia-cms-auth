@@ -10,6 +10,11 @@ compatibility_date = "2023-03-24"
 # the Joffe domains sat in main but were still refused). Check afterwards:
 #   /auth?provider=github&site_id=<domain> must 302 to github.com.
 #
+# ALLOWED_DOMAINS is a real boundary since 12 Nov 2026: the token is released
+# only to an https page on the exact hostname that started the sign-in, and
+# that hostname must be on this list (src/index.js, CEM change over upstream).
+# Run `node tests/handshake.test.mjs` before every deploy.
+#
 # GITHUB_CLIENT_SECRET is a Worker SECRET (wrangler secret put), never here.
 # `wrangler deploy` leaves secrets alone and sets these vars on every deploy,
 # so this file is the single source of truth. Never upload this Worker via the
