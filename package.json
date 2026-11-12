@@ -7,6 +7,7 @@
   "scripts": {
     "start": "wrangler dev",
     "deploy": "wrangler deploy",
+    "test": "node tests/handshake.test.mjs",
     "check": "pnpm run '/^check:.*/'",
     "check:audit": "pnpm audit",
     "check:cspell": "cspell --no-progress",

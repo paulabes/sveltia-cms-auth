@@ -20,18 +20,39 @@ const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * Sveltia CMS.
  * @returns {Response} Response with HTML.
  */
-const outputHTML = ({ provider = 'unknown', token, error, errorCode }) => {
+const outputHTML = ({ provider = 'unknown', token, error, errorCode, siteHost = '' }) => {
   const state = error ? 'error' : 'success';
   const content = error ? { provider, error, errorCode } : { provider, token };
+  // Both values are written into an inline script, so `<` is escaped to stop a
+  // `</script>` in an upstream error message from closing it early.
+  const inline = (value) => JSON.stringify(value).replaceAll('<', '\\u003c');
 
+  // CEM change (12 Nov 2026). Upstream replied to whichever window answered the
+  // handshake, so any page that opened this popup could collect the token. The
+  // token now goes ONLY to the site that started the sign-in: `siteHost` is the
+  // `site_id` from /auth, checked against ALLOWED_DOMAINS there and again in
+  // /callback. The opener must be https on exactly that hostname. Error
+  // messages carry no secret and still go to any opener, so the CMS can show
+  // them. The first "authorizing" ping carries no secret either, hence '*'.
   return new Response(
     `
       <!doctype html><html><body><script>
         (() => {
+          const siteHost = ${inline(siteHost)};
+          const secret = ${inline(!error)};
+          const mayReceive = (origin) => {
+            if (!secret) return true;
+            try {
+              const { protocol, hostname } = new URL(origin);
+              return !!siteHost && protocol === 'https:' && hostname === siteHost;
+            } catch {
+              return false;
+            }
+          };
           window.addEventListener('message', ({ data, origin }) => {
-            if (data === 'authorizing:${provider}') {
+            if (data === 'authorizing:${provider}' && mayReceive(origin)) {
               window.opener?.postMessage(
-                'authorization:${provider}:${state}:${JSON.stringify(content)}',
+                'authorization:${provider}:${state}:' + ${inline(JSON.stringify(content))},
                 origin
               );
             }
@@ -43,12 +64,32 @@ const outputHTML = ({ provider = 'unknown', token, error, errorCode }) => {
     {
       headers: {
         'Content-Type': 'text/html;charset=UTF-8',
-        // Delete CSRF token
+        // Delete CSRF token (the site cookie simply expires with it, 10 minutes)
         'Set-Cookie': `csrf-token=deleted; HttpOnly; Max-Age=0; Path=/; SameSite=Lax; Secure`,
+        'Cache-Control': 'no-store',
       },
     },
   );
 };
+
+/**
+ * Whether the given hostname is on the `ALLOWED_DOMAINS` list (wildcards allowed). With no list
+ * configured every hostname passes, as upstream.
+ * @param {string | undefined} allowedDomains - Comma-separated list from the environment.
+ * @param {string | undefined} domain - Hostname to check.
+ * @returns {boolean} Result.
+ */
+const isAllowedDomain = (allowedDomains, domain) =>
+  !allowedDomains ||
+  allowedDomains.split(/,/).some((str) =>
+    // Escape the input, then replace a wildcard for regex
+    (domain ?? '').match(new RegExp(`^${escapeRegExp(str.trim()).replace('\\*', '.+')}$`)),
+  );
+
+/**
+ * A plain hostname: letters, digits, dots and hyphens only, so it is safe in a cookie value.
+ */
+const hostnamePattern = /^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$/i;
 
 /**
  * Handle the `auth` method, which is the first request in the authorization flow.
@@ -78,14 +119,9 @@ const handleAuth = async (request, env) => {
     GITLAB_HOSTNAME = 'gitlab.com',
   } = env;
 
-  // Check if the domain is whitelisted
-  if (
-    ALLOWED_DOMAINS &&
-    !ALLOWED_DOMAINS.split(/,/).some((str) =>
-      // Escape the input, then replace a wildcard for regex
-      (domain ?? '').match(new RegExp(`^${escapeRegExp(str.trim()).replace('\\*', '.+')}$`)),
-    )
-  ) {
+  // Check if the domain is whitelisted. It must also be a plain hostname, because the token is
+  // later released only to an opener on exactly this host (see `outputHTML`).
+  if (!hostnamePattern.test(domain ?? '') || !isAllowedDomain(ALLOWED_DOMAINS, domain)) {
     return outputHTML({
       provider,
       error: 'Your domain is not allowed to use the authenticator.',
@@ -138,17 +174,21 @@ const handleAuth = async (request, env) => {
   }
 
   // Redirect to the authorization server
-  return new Response('', {
-    status: 302,
-    headers: {
-      Location: authURL,
-      // Cookie expires in 10 minutes; Use `SameSite=Lax` to make sure the cookie is sent by the
-      // browser after redirect
-      'Set-Cookie':
-        `csrf-token=${provider}_${csrfToken}; ` +
-        `HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
-    },
-  });
+  const headers = new Headers({ Location: authURL });
+
+  // Cookie expires in 10 minutes; Use `SameSite=Lax` to make sure the cookie is sent by the
+  // browser after redirect
+  headers.append(
+    'Set-Cookie',
+    `csrf-token=${provider}_${csrfToken}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
+  );
+  // Remember which site started this sign-in, so /callback can release the token to it alone
+  headers.append(
+    'Set-Cookie',
+    `auth-site=${domain.toLowerCase()}; HttpOnly; Path=/; Max-Age=600; SameSite=Lax; Secure`,
+  );
+
+  return new Response('', { status: 302, headers });
 };
 
 /**
@@ -189,6 +229,7 @@ const handleCallback = async (request, env) => {
   }
 
   const {
+    ALLOWED_DOMAINS,
     GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET,
     GITHUB_HOSTNAME = 'github.com',
@@ -196,6 +237,18 @@ const handleCallback = async (request, env) => {
     GITLAB_CLIENT_SECRET,
     GITLAB_HOSTNAME = 'gitlab.com',
   } = env;
+
+  // The site that started this sign-in. Checked again here, so a stale or hand-made cookie cannot
+  // name a site that is not on the list. Without it no token is requested at all.
+  const [, siteHost = ''] = headers.get('Cookie')?.match(/\bauth-site=([a-z0-9.-]+)/i) ?? [];
+
+  if (!hostnamePattern.test(siteHost) || !isAllowedDomain(ALLOWED_DOMAINS, siteHost)) {
+    return outputHTML({
+      provider,
+      error: 'Your domain is not allowed to use the authenticator.',
+      errorCode: 'UNSUPPORTED_DOMAIN',
+    });
+  }
 
   let tokenURL = '';
   let requestBody = {};
@@ -272,7 +325,11 @@ const handleCallback = async (request, env) => {
     });
   }
 
-  return outputHTML({ provider, token, error });
+  if (!token && !error) {
+    error = 'Failed to receive an access token. Please try again later.';
+  }
+
+  return outputHTML({ provider, token, error, siteHost });
 };
 
 export default {
