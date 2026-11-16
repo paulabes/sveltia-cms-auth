@@ -28,4 +28,4 @@ routes = [{ pattern = "cms-auth.crouchendmedia.co.uk", custom_domain = true }]
 # raw Cloudflare API: that wiped every binding on 28 Jul 2026.
 [vars]
 GITHUB_CLIENT_ID = "Ov23liyUBis9bryq41Pn"
-ALLOWED_DOMAINS = "tegannorthwood-astro.pages.dev,tegannorthwood.com.au,www.tegannorthwood.com.au,latimernetwork.org,www.latimernetwork.org,latimer-network-astro.paulabrahams-dev.workers.dev,latimer-network-astro.crouchendmedia.workers.dev,pmsommer.com,www.pmsommer.com,joffetrust-astro.paulabrahams-dev.workers.dev,joffetrust-astro.crouchendmedia.workers.dev,joffetrust.org,www.joffetrust.org,foard-astro.paulabrahams-dev.workers.dev,foard-astro.crouchendmedia.workers.dev,foard.co.uk,www.foard.co.uk"
+ALLOWED_DOMAINS = "tegannorthwood-astro.pages.dev,tegannorthwood.com.au,www.tegannorthwood.com.au,latimernetwork.org,www.latimernetwork.org,latimer-network-astro.paulabrahams-dev.workers.dev,pmsommer.com,www.pmsommer.com,joffetrust-astro.paulabrahams-dev.workers.dev,joffetrust-preview.crouchendmedia.co.uk,joffetrust.org,www.joffetrust.org,foard-astro.paulabrahams-dev.workers.dev,foard.co.uk,www.foard.co.uk"
