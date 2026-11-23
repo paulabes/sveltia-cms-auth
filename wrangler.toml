@@ -3,10 +3,11 @@ main = "src/index.js"
 compatibility_date = "2023-03-24"
 
 # Its own address on our domain (16 Nov 2026), so CMS sign-in never depends on
-# the account's workers.dev name. Kept on workers.dev too until every site's
-# base_url points here and the GitHub OAuth callback has moved
+# the account's workers.dev name. workers.dev OFF since 23 Nov 2026, when every
+# site's base_url and the GitHub OAuth callback moved here
 # (engine/plans/2026-11-16-rename-workers-dev-subdomain.md).
-workers_dev = true
+workers_dev = false
+preview_urls = false
 routes = [{ pattern = "cms-auth.crouchendmedia.co.uk", custom_domain = true }]
 
 # Shared CMS login for every CEM Sveltia site. One GitHub OAuth App
@@ -28,4 +29,4 @@ routes = [{ pattern = "cms-auth.crouchendmedia.co.uk", custom_domain = true }]
 # raw Cloudflare API: that wiped every binding on 28 Jul 2026.
 [vars]
 GITHUB_CLIENT_ID = "Ov23liyUBis9bryq41Pn"
-ALLOWED_DOMAINS = "tegannorthwood-astro.pages.dev,tegannorthwood.com.au,www.tegannorthwood.com.au,latimernetwork.org,www.latimernetwork.org,latimer-network-astro.paulabrahams-dev.workers.dev,pmsommer.com,www.pmsommer.com,joffetrust-astro.paulabrahams-dev.workers.dev,joffetrust-preview.crouchendmedia.co.uk,joffetrust.org,www.joffetrust.org,foard-astro.paulabrahams-dev.workers.dev,foard.co.uk,www.foard.co.uk"
+ALLOWED_DOMAINS = "tegannorthwood.com.au,www.tegannorthwood.com.au,latimernetwork.org,www.latimernetwork.org,pmsommer.com,www.pmsommer.com,joffetrust-preview.crouchendmedia.co.uk,joffetrust.org,www.joffetrust.org,foard.co.uk,www.foard.co.uk"
